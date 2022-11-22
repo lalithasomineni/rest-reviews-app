@@ -6,6 +6,14 @@ let Restaurants = require("../models/restaurant");
 const app = express();
 app.use(express.json());
 const multer = require("multer");
+const auth = require("../middlewares/auth");
+const bcrypt = require("bcrypt");
+const userschema = require("../models/users");
+const Passport = require("../middlewares/passport");
+
+
+
+
 
 
 var storage = multer.diskStorage({
@@ -28,19 +36,57 @@ router.get("/",(req,res)=>{
     })
 })
 
-router.post("/add",upload.single('image'),(req,res)=>{
+router.get("/restaurant",(req,res)=>{
+  Restaurants.find().where({name: req.params.name}).then(result=>{
+      res.json({"restaurant":result})
+  }).catch(err=>{
+      res.json(err);
+  })
+})
+
+router.post("/add",auth,upload.single('image'),async (req,res)=>{
   let newRestaurant = new Restaurants({
-           _id: new mongoose.Types.ObjectId(),
+           _id: new mongoose.Types.ObjectId,
            name: req.body.name,
            rating: req.body.rating,
            location: req.body.location,
            famousCusines: req.body.famousCusines,
-           image: req.body.image
+           image: req.body.image,
+           user:req.body.user
   });
-  newRestaurant.save().then(result=>{
-    res.status(200).json("saved");
-  }).catch(err=>{
-    res.status(404).json("error");
-  })
+    Restaurants.find({name: req.body.name}).then(resta=>{
+    if(resta.length >= 1){
+      res.send("already exists")
+  }else{
+    newRestaurant.save().then(result=>{
+      res.status(200).json(result);
+      }).catch(err=>{
+    res.status(500).json("error");
+ })
+      }
+})
+})
+
+
+
+router.put("/update/:id",auth,upload.single('image'),async (req,res)=>{
+  try{
+ const updatedResto = await Restaurants.findByIdAndUpdate(req.body._id,{
+  $set:req.body,
+ },{new: true}
+ )
+ res.json(updatedResto); 
+}
+catch(err){
+ res.json(err);
+} 
+})
+
+router.delete("/delete",auth,(req,res)=>{
+Restaurants.deleteOne({name: req.params.name}).then(result=>{
+  res.json({"result": result})
+}).catch(err=>{
+  res.json(err)
+})
 })
 module.exports = router;
